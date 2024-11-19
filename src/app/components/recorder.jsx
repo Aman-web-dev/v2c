@@ -13,7 +13,7 @@ const AudioRecorder = () => {
   const [convertedText, setConvertedText] = useState("");
   const [connection, setConnection] = useState(null);
   const inputRef = useRef(null);
-  const [PreConvertedTextArray,setPreConvertedTextArray]=useState([])
+  const [PreConvertedTextArray, setPreConvertedTextArray] = useState([]);
 
   useEffect(() => {
     let interval;
@@ -27,14 +27,12 @@ const AudioRecorder = () => {
     }
 
     return () => clearInterval(interval);
-  }, [isRecording,convertedText]);
-
+  }, [isRecording, convertedText]);
 
   const startRecording = async () => {
     try {
       // Toggle logic: Stop recording if already recording
       if (isRecording) {
-        console.log("Stopping recording...");
 
         // Stop all tracks in the stream
         if (stream) {
@@ -44,15 +42,11 @@ const AudioRecorder = () => {
         // Close the Deepgram WebSocket connection
         if (connection) {
           connection.requestClose();
-          console.log("Deepgram WebSocket closed.");
         }
 
         setIsRecording(false);
         return;
       }
-
-      // Start fresh recording
-      console.log("Starting recording...");
 
       const context = new window.AudioContext();
       const newStream = await navigator.mediaDevices.getUserMedia({
@@ -61,7 +55,6 @@ const AudioRecorder = () => {
       const inputSource = context.createMediaStreamSource(newStream);
 
       const ApiKey = process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY;
-      console.log(ApiKey);
 
       const deepgram = createClient(ApiKey);
       const newConnection = deepgram.listen.live({
@@ -71,7 +64,6 @@ const AudioRecorder = () => {
       });
 
       newConnection.on(LiveTranscriptionEvents.Open, () => {
-        console.log("Deepgram WebSocket opened.");
         setIsRecording(true);
         setConnection(newConnection);
 
@@ -79,7 +71,6 @@ const AudioRecorder = () => {
           const transcript = data.channel.alternatives[0]?.transcript;
           if (transcript) {
             setConvertedText((prev) => [...prev, transcript]);
-            console.log(transcript, convertedText);
           }
         });
 
@@ -110,30 +101,28 @@ const AudioRecorder = () => {
 
   // Handle action buttons
   const handleDelete = () => {
-    setConvertedText("")
-    setVisualizerData(Array(15).fill(2))
+    setConvertedText("");
+    setVisualizerData(Array(15).fill(2));
   };
 
   const handleSave = () => {
-    const newText=convertedText.toString()
-    console.log(newText,"newText")
-    console.log(PreConvertedTextArray)
-    // Add your save logic here
-    setPreConvertedTextArray((prev)=>[...prev,newText])
-    setConvertedText("")
-    setVisualizerData(Array(15).fill(2))
-    console.log("Saving recording");
+    const newText = convertedText.toString();
+    setPreConvertedTextArray((prev) => [...prev, newText]);
+    setConvertedText("");
+    setVisualizerData(Array(15).fill(2));
   };
 
   const handleCopy = () => {
-    PreConvertedTextArray.map((elem,index)=>(
-        console.log(elem,index)
-    ))
     navigator.clipboard.writeText(convertedText);
   };
 
+  const handleRecordDelete = (index) => {
+    const newArray = PreConvertedTextArray.filter((e, i) => i !== index);
+    setPreConvertedTextArray(newArray);
+  };
+
   return (
-    <div className="w-full mx-auto p-6 rounded-lg shadow-xl flex items-center flex-col my-auto h-screen justify-center bg-gray-900">
+    <div className="w-full mx-auto p-6 rounded-lg shadow-xl flex items-center flex-col my-auto min-h-[100vh] justify-center bg-gray-900">
       <div className="flex flex-col space-y-4 items-center">
         <div className="w-[80vw] relative group">
           <input
@@ -218,13 +207,12 @@ const AudioRecorder = () => {
           ) : (
             ""
           )}
-
         </div>
 
-        <PrerecordedTextCard preConvertedText={PreConvertedTextArray}/>
-
-
-
+        <PrerecordedTextCard
+          preConvertedText={PreConvertedTextArray}
+          handleRecordDelete={handleRecordDelete}
+        />
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Trash2, Copy } from 'lucide-react';
 
-const PrerecordedTextCard = ({ preConvertedText = [] }) => {
+const PrerecordedTextCard = ({ preConvertedText = [],handleRecordDelete }) => {
   const copyText = (text) => {
     navigator.clipboard.writeText(text);
   };
@@ -27,7 +28,7 @@ const PrerecordedTextCard = ({ preConvertedText = [] }) => {
                 <Copy size={20} className="text-gray-600" />
               </button>
               <button 
-                onClick={() => {/* Add delete handler */}}
+                onClick={() => {handleRecordDelete(index)}}
                 className="p-2 bg-red-50 rounded-full transition-colors"
                 title="Delete text"
               >
