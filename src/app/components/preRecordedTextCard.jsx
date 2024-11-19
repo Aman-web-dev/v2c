@@ -15,8 +15,8 @@ const PrerecordedTextCard = ({ preConvertedText = [],handleRecordDelete }) => {
           className="backdrop-blur-sm bg-gray-800  shadow-lg overflow-hidden border-gray-700 py-2 px-6 rounded-xl"
         >
           <div className=" h-1" />
-          <div className="p-4 flex items-start justify-between gap-4">
-            <p className="flex-1  text-lg overflow-x-auto whitespace-nowrap">
+          <div className="p-4 flex  items-start justify-between gap-4">
+            <p className="flex-1 py-2 mx-4 px-2 rounded-lg font-bold text-xl overflow-x-auto whitespace-nowrap">
               {text}
             </p>
             <div className="flex items-center space-x-2 flex-shrink-0">

@@ -4,16 +4,19 @@ import React, { useState, useEffect, useRef } from "react";
 import { Mic, Square, Trash2, Play, Pause, Save, Copy } from "lucide-react";
 import { createClient, LiveTranscriptionEvents } from "@deepgram/sdk";
 import PrerecordedTextCard from "./preRecordedTextCard";
+import { MoonLoader } from "react-spinners";
+import StatusLabel from "./StatusLable";
 
 const AudioRecorder = () => {
   const [isRecording, setIsRecording] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [stream, setStream] = useState(null); // To track the audio stream
+  const [stream, setStream] = useState(null);
   const [visualizerData, setVisualizerData] = useState(Array(15).fill(2));
   const [convertedText, setConvertedText] = useState("");
   const [connection, setConnection] = useState(null);
-  const inputRef = useRef(null);
   const [PreConvertedTextArray, setPreConvertedTextArray] = useState([]);
+  const [connecting, setConnecting] = useState(false);
+  const [statusLabel,setStatusLabel]=useState("idle")
+  const inputRef = useRef(null);
 
   useEffect(() => {
     let interval;
@@ -30,22 +33,26 @@ const AudioRecorder = () => {
   }, [isRecording, convertedText]);
 
   const startRecording = async () => {
+    setConnecting(true);
+    
     try {
-      // Toggle logic: Stop recording if already recording
       if (isRecording) {
-
-        // Stop all tracks in the stream
+        setStatusLabel("disconnecting")
         if (stream) {
           stream.getTracks().forEach((track) => track.stop());
         }
-
-        // Close the Deepgram WebSocket connection
         if (connection) {
           connection.requestClose();
         }
-
         setIsRecording(false);
+        setConnecting(false)
+        setStatusLabel("disconnected")
         return;
+      }
+      if(statusLabel=='disconnected' ){
+        setStatusLabel("reconnecting")
+      }else{
+        setStatusLabel("connecting")
       }
 
       const context = new window.AudioContext();
@@ -64,8 +71,9 @@ const AudioRecorder = () => {
       });
 
       newConnection.on(LiveTranscriptionEvents.Open, () => {
+        setConnecting(false);
         setIsRecording(true);
-        setConnection(newConnection);
+        setStatusLabel("connected")
 
         newConnection.on(LiveTranscriptionEvents.Transcript, (data) => {
           const transcript = data.channel.alternatives[0]?.transcript;
@@ -82,24 +90,20 @@ const AudioRecorder = () => {
           console.log("Deepgram WebSocket closed.");
         });
 
-        // Start sending audio data to Deepgram
         const recorder = new MediaRecorder(newStream);
         recorder.ondataavailable = (event) => {
           newConnection.send(event.data);
         };
-        recorder.start(250); // Send audio data in 250ms chunks
+        recorder.start(100);
       });
 
-      // Save references to stop later
       setStream(newStream);
       setConnection(newConnection);
-      setIsRecording(true);
     } catch (error) {
       console.error("Error starting recording:", error);
     }
   };
 
-  // Handle action buttons
   const handleDelete = () => {
     setConvertedText("");
     setVisualizerData(Array(15).fill(2));
@@ -123,6 +127,7 @@ const AudioRecorder = () => {
 
   return (
     <div className="w-full mx-auto p-6 rounded-lg shadow-xl flex items-center flex-col my-auto min-h-[100vh] justify-center bg-gray-900">
+      
       <div className="flex flex-col space-y-4 items-center">
         <div className="w-[80vw] relative group">
           <input
@@ -136,7 +141,7 @@ const AudioRecorder = () => {
                disabled:opacity-100 disabled:cursor-default
                overflow-x-auto whitespace-nowrap scroll-smooth"
           />
-          {isRecording && !isPaused && (
+          {isRecording && (
             <span className="absolute right-6 top-1/2 -translate-y-1/2 w-2 h-8 bg-purple-500 animate-pulse rounded-full" />
           )}
           {convertedText && !isRecording && (
@@ -164,18 +169,28 @@ const AudioRecorder = () => {
         </div>
 
         <div className="flex flex-col items-center space-y-4">
+        <StatusLabel status={statusLabel}/>
           <button
             onClick={startRecording}
             className={`p-4 rounded-full transition-all hover:scale-110 active:scale-95 ${
               isRecording
                 ? "bg-red-500/20 hover:bg-red-500/30"
-                : "bg-gray-800 hover:bg-gray-700"
+                : "bg-gray-100 hover:bg-gray-700"
             }`}
           >
-            <Mic
-              size={24}
-              className={isRecording ? "text-red-500" : "text-gray-300"}
-            />
+            {connecting ? (
+              <MoonLoader
+                color="#000000"
+                cssOverride={{}}
+                size={35}
+                speedMultiplier={1}
+              />
+            ) : (
+              <Mic
+                size={48}
+                className={isRecording ? "text-red-500" : "text-gray-900"}
+              />
+            )}
           </button>
           {!isRecording && convertedText ? (
             <div className="flex space-x-4">
