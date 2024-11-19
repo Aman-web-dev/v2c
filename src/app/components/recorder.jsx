@@ -129,10 +129,10 @@ const AudioRecorder = () => {
     <div className="w-full mx-auto p-6 rounded-lg shadow-xl flex items-center flex-col my-auto min-h-[100vh] justify-center bg-gray-900">
       
       <div className="flex flex-col space-y-4 items-center">
-        <div className="w-[80vw] relative group">
+        <div className="w-[80vw] relative group ">
           <input
             ref={inputRef}
-            value={convertedText}
+            value={convertedText===""?"Click the Mic icon to start recording...":convertedText}
             disabled
             className="w-full bg-gray-800 text-3xl py-6 px-6 rounded-xl border-2 border-gray-700 
                text-gray-100 font-semibold tracking-wide shadow-lg
@@ -161,7 +161,7 @@ const AudioRecorder = () => {
                 className="w-2 bg-blue-400 rounded-full transition-all duration-100"
                 style={{
                   height: `${height}px`,
-                  opacity: isRecording ? 0.5 : 1,
+                  opacity: isRecording ? 1 : 0.5,
                 }}
               />
             ))}
