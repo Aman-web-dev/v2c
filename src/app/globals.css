@@ -19,3 +19,28 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+::-webkit-scrollbar {
+  width: 2px;  /* Vertical scrollbar width */
+  height: 2px; /* Horizontal scrollbar height */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;  /* Track background */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3b82f6;  /* Blue color */
+  border-radius: 10px;  /* Rounded corners */
+}
+
+/* Optional: Hover effect */
+::-webkit-scrollbar-thumb:hover {
+  background: #2563eb;  /* Slightly darker blue on hover */
+}
+
+/* For Firefox
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3b82f6 transparent;
+} */

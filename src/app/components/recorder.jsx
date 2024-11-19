@@ -1,91 +1,183 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, Square, Trash2, Play, Pause } from "lucide-react";
+import { Mic, Square, Trash2, Play, Pause, Save, Copy } from "lucide-react";
 import { createClient, LiveTranscriptionEvents } from "@deepgram/sdk";
+import PrerecordedTextCard from "./preRecordedTextCard";
 
 const AudioRecorder = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [stream, setStream] = useState(null); // To track the audio stream
   const [visualizerData, setVisualizerData] = useState(Array(15).fill(2));
   const [convertedText, setConvertedText] = useState("");
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const deepgramConnectionRef = useRef(null);
+  const [connection, setConnection] = useState(null);
+  const inputRef = useRef(null);
+  const [PreConvertedTextArray,setPreConvertedTextArray]=useState([])
 
-  // Visualization effect
   useEffect(() => {
     let interval;
-    if (isRecording && !isPaused) {
+    if (isRecording) {
       interval = setInterval(() => {
         setVisualizerData((prev) => prev.map(() => Math.random() * 48 + 2));
       }, 100);
     }
+    if (inputRef.current) {
+      inputRef.current.scrollLeft = inputRef.current.scrollWidth;
+    }
+
     return () => clearInterval(interval);
-  }, [isRecording, isPaused]);
+  }, [isRecording,convertedText]);
+
 
   const startRecording = async () => {
-   
-  };
+    try {
+      // Toggle logic: Stop recording if already recording
+      if (isRecording) {
+        console.log("Stopping recording...");
 
+        // Stop all tracks in the stream
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
 
-  const stopRecording = () => {
-    // Stop MediaRecorder
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
+        // Close the Deepgram WebSocket connection
+        if (connection) {
+          connection.requestClose();
+          console.log("Deepgram WebSocket closed.");
+        }
+
+        setIsRecording(false);
+        return;
+      }
+
+      // Start fresh recording
+      console.log("Starting recording...");
+
+      const context = new window.AudioContext();
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+      const inputSource = context.createMediaStreamSource(newStream);
+
+      const ApiKey = process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY;
+      console.log(ApiKey);
+
+      const deepgram = createClient(ApiKey);
+      const newConnection = deepgram.listen.live({
+        model: "nova-2",
+        language: "en-US",
+        smart_format: true,
+      });
+
+      newConnection.on(LiveTranscriptionEvents.Open, () => {
+        console.log("Deepgram WebSocket opened.");
+        setIsRecording(true);
+        setConnection(newConnection);
+
+        newConnection.on(LiveTranscriptionEvents.Transcript, (data) => {
+          const transcript = data.channel.alternatives[0]?.transcript;
+          if (transcript) {
+            setConvertedText((prev) => [...prev, transcript]);
+            console.log(transcript, convertedText);
+          }
+        });
+
+        newConnection.on(LiveTranscriptionEvents.Error, (err) => {
+          console.error("Deepgram Error:", err);
+        });
+
+        newConnection.on(LiveTranscriptionEvents.Close, () => {
+          console.log("Deepgram WebSocket closed.");
+        });
+
+        // Start sending audio data to Deepgram
+        const recorder = new MediaRecorder(newStream);
+        recorder.ondataavailable = (event) => {
+          newConnection.send(event.data);
+        };
+        recorder.start(250); // Send audio data in 250ms chunks
+      });
+
+      // Save references to stop later
+      setStream(newStream);
+      setConnection(newConnection);
+      setIsRecording(true);
+    } catch (error) {
+      console.error("Error starting recording:", error);
     }
-
-    // Close Deepgram connection
-    if (deepgramConnectionRef.current) {
-      deepgramConnectionRef.current.close();
-    }
-
-    setIsRecording(false);
-    setIsPaused(false);
-    setVisualizerData(Array(15).fill(2));
   };
 
-  const togglePause = () => {
-    setIsPaused(!isPaused);
-    // Pause/resume audio processing if needed
+  // Handle action buttons
+  const handleDelete = () => {
+    setConvertedText("")
+    setVisualizerData(Array(15).fill(2))
   };
 
-  const deleteRecording = () => {
-    stopRecording();
-    setConvertedText("");
+  const handleSave = () => {
+    const newText=convertedText.toString()
+    console.log(newText,"newText")
+    console.log(PreConvertedTextArray)
+    // Add your save logic here
+    setPreConvertedTextArray((prev)=>[...prev,newText])
+    setConvertedText("")
+    setVisualizerData(Array(15).fill(2))
+    console.log("Saving recording");
+  };
+
+  const handleCopy = () => {
+    PreConvertedTextArray.map((elem,index)=>(
+        console.log(elem,index)
+    ))
+    navigator.clipboard.writeText(convertedText);
   };
 
   return (
     <div className="w-full mx-auto p-6 rounded-lg shadow-xl flex items-center flex-col my-auto h-screen justify-center bg-gray-900">
       <div className="flex flex-col space-y-4 items-center">
-        {/* Transcription Text Interface */}
-        <div className="max-w-3xl w-full">
-          <h1 className="text-white text-4xl md:text-6xl lg:text-8xl text-center min-h-[200px] flex items-center justify-center">
-            {convertedText || "Waiting to transcribe..."}
-          </h1>
+        <div className="w-[80vw] relative group">
+          <input
+            ref={inputRef}
+            value={convertedText}
+            disabled
+            className="w-full bg-gray-800 text-3xl py-6 px-6 rounded-xl border-2 border-gray-700 
+               text-gray-100 font-semibold tracking-wide shadow-lg
+               transition-all duration-200
+               focus:outline-none focus:ring-2 focus:ring-purple-500
+               disabled:opacity-100 disabled:cursor-default
+               overflow-x-auto whitespace-nowrap scroll-smooth"
+          />
+          {isRecording && !isPaused && (
+            <span className="absolute right-6 top-1/2 -translate-y-1/2 w-2 h-8 bg-purple-500 animate-pulse rounded-full" />
+          )}
+          {convertedText && !isRecording && (
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <span className="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
+                {convertedText.length} characters
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Visualizer */}
-        <div className="flex-1 h-20 max-w-3xl bg-gray-800 rounded-lg p-4 flex items-center justify-center">
-          <div className="flex items-center space-x-1 h-full">
+        <div className="flex-1 h-[40] max-w-3xl bg-gray-800 rounded-lg p-4 flex items-center justify-center">
+          <div className="flex h-10 items-center space-x-1 ">
             {visualizerData.map((height, index) => (
               <div
                 key={index}
                 className="w-2 bg-blue-400 rounded-full transition-all duration-100"
                 style={{
                   height: `${height}px`,
-                  opacity: isPaused ? 0.5 : 1,
+                  opacity: isRecording ? 0.5 : 1,
                 }}
               />
             ))}
           </div>
         </div>
 
-        {/* Recording Button */}
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center space-y-4">
           <button
-            onClick={isRecording ? togglePause : startRecording}
-            className={`p-4 rounded-full transition-all ${
+            onClick={startRecording}
+            className={`p-4 rounded-full transition-all hover:scale-110 active:scale-95 ${
               isRecording
                 ? "bg-red-500/20 hover:bg-red-500/30"
                 : "bg-gray-800 hover:bg-gray-700"
@@ -96,38 +188,43 @@ const AudioRecorder = () => {
               className={isRecording ? "text-red-500" : "text-gray-300"}
             />
           </button>
-          <span className="text-xs text-gray-400 mt-2">
-            {isRecording
-              ? isPaused
-                ? "Paused"
-                : "Recording"
-              : "Click to record"}
-          </span>
+          {!isRecording && convertedText ? (
+            <div className="flex space-x-4">
+              <button
+                onClick={handleDelete}
+                className="p-3 rounded-full bg-red-500/20 hover:bg-red-500/30 transition-all
+                   hover:scale-110 active:scale-95"
+                title="Delete recording"
+              >
+                <Trash2 size={20} className="text-red-500" />
+              </button>
+              <button
+                onClick={handleSave}
+                className="p-3 rounded-full bg-green-500/20 hover:bg-green-500/30 transition-all
+                   hover:scale-110 active:scale-95"
+                title="Save recording"
+              >
+                <Save size={20} className="text-green-500" />
+              </button>
+              <button
+                onClick={handleCopy}
+                className="p-3 rounded-full bg-blue-500/20 hover:bg-blue-500/30 transition-all
+                   hover:scale-110 active:scale-95"
+                title="Copy text"
+              >
+                <Copy size={20} className="text-blue-500" />
+              </button>
+            </div>
+          ) : (
+            ""
+          )}
+
         </div>
 
-        {/* Controls */}
-        {isRecording && (
-          <div className="flex justify-center space-x-4 mt-2">
-            <button
-              onClick={togglePause}
-              className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-300"
-            >
-              {isPaused ? <Play size={20} /> : <Pause size={20} />}
-            </button>
-            <button
-              onClick={stopRecording}
-              className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-300"
-            >
-              <Square size={20} />
-            </button>
-            <button
-              onClick={deleteRecording}
-              className="p-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-500"
-            >
-              <Trash2 size={20} />
-            </button>
-          </div>
-        )}
+        <PrerecordedTextCard preConvertedText={PreConvertedTextArray}/>
+
+
+
       </div>
     </div>
   );
